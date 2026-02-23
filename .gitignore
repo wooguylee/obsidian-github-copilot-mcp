@@ -1,3 +1,5 @@
-/node_modules
-/build
-/package-lock.json
+node_modules/
+dist/
+main.js
+*.js.map
+data.json
