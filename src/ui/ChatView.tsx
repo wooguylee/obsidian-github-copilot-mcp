@@ -373,8 +373,8 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
                                 result.status === "running"
                                     ? "Running..."
                                     : result.status === "success"
-                                      ? "Done"
-                                      : `Error: ${result.error}`;
+                                        ? "Done"
+                                        : `Error: ${result.error}`;
                             const key =
                                 result.toolName +
                                 ":" +
@@ -767,26 +767,26 @@ const SVG_SIGN_OUT = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height=
 // ============================================================
 
 const blinkAnimation = keyframes`
-  50% { opacity: 0; }
+    50% { opacity: 0; }
 `;
 
 const GlobalStyles = createGlobalStyle`
-  .copilot-mcp-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-  /* Markdown rendered content styles */
-  .copilot-mcp-md p { margin: 4px 0; }
-  .copilot-mcp-md pre {
-    background: var(--background-primary-alt);
-    padding: 8px;
-    border-radius: 4px;
-    overflow-x: auto;
-    font-size: 12px;
-  }
-  .copilot-mcp-md code { font-size: 12px; }
+    .copilot-mcp-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+    }
+    /* Markdown rendered content styles */
+    .copilot-mcp-md p { margin: 4px 0; }
+    .copilot-mcp-md pre {
+        background: var(--background-primary-alt);
+        padding: 8px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 12px;
+    }
+    .copilot-mcp-md code { font-size: 12px; }
 `;
 
 /* Auth */
