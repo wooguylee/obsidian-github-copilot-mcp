@@ -98,6 +98,33 @@ export async function ensureValidToken(
   return tokenResponse.token;
 }
 
+// --- Available Models ---
+
+export async function fetchAvailableModels(
+    authState: AuthState,
+    onUpdate: (auth: Partial<AuthState>) => void
+): Promise<ModelOption[]> {
+    const token = await ensureValidToken(authState, onUpdate);
+    const response = await fetch("https://api.githubcopilot.com/models", {
+        method: "GET",
+        headers: {
+            Accept: "application/json",
+            "editor-version": "vscode/1.80.1",
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.status}`);
+    }
+    const data = await response.json();
+    // Filter to chat-capable models and map to ModelOption
+    return (data.data as Array<{ id: string; name?: string; capabilities?: { type?: string[] } }>)
+        .filter((m) => !m.capabilities?.type || m.capabilities.type.includes("chat"))
+        .map((m) => ({ label: m.name ?? m.id, value: m.id }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 // --- Streaming Chat Completion ---
 
 export interface StreamCallbacks {

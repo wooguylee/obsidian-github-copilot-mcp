@@ -23,6 +23,7 @@ import {
 import type CopilotMCPPlugin from "../main";
 import type { ConversationMessage, ToolCallResult } from "../types";
 import { AVAILABLE_MODELS } from "../types";
+import { fetchAvailableModels } from "../copilot/api";
 import { fetchDeviceCode, fetchPAT, fetchToken } from "../copilot/api";
 import { runChatEngine } from "../copilot/engine";
 
@@ -245,6 +246,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
     const [conversationHistory, setConversationHistory] = useState<
         ConversationMessage[]
     >([]);
+    const [availableModels, setAvailableModels] = useState(AVAILABLE_MODELS);
     const [isProcessing, setIsProcessing] = useState(false);
     const [inputValue, setInputValue] = useState("");
     const [streamingContent, setStreamingContent] = useState("");
@@ -270,6 +272,20 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
         setLiveToolCalls([]);
     };
 
+    // Fetch dynamic model list from Copilot API on mount
+    useEffect(() => {
+        fetchAvailableModels(plugin.settings.authState, async (auth) => {
+            Object.assign(plugin.settings.authState, auth);
+            await plugin.saveSettings();
+        })
+            .then((models) => {
+                if (models.length > 0) setAvailableModels(models);
+            })
+            .catch(() => {
+                /* fall back to hardcoded list */
+            });
+    }, []);
+
     // Expose handleNewChat to the ItemView class (used by main.ts "New Chat" command)
     useEffect(() => {
         (component as ChatView).newChatCallback = handleNewChat;
@@ -293,7 +309,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
     const handleModelChange = async (
         e: React.ChangeEvent<HTMLSelectElement>,
     ) => {
-        const selected = AVAILABLE_MODELS.find(
+        const selected = availableModels.find(
             (m) => m.value === e.target.value,
         );
         if (selected) {
@@ -471,7 +487,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
                     value={plugin.settings.selectedModel.value}
                     onChange={handleModelChange}
                 >
-                    {AVAILABLE_MODELS.map((m) => (
+                    {availableModels.map((m) => (
                         <option key={m.value} value={m.value}>
                             {m.label}
                         </option>
