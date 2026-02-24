@@ -99,6 +99,6 @@ npm run build
 
 Copy the built files (`main.js`, `manifest.json`) into your vault's `.obsidian/plugins/github-copilot-mcp/` folder.
 
-## 📄 Licence
+## 📄 License
 
-This project is licensed under the Apache License 2.0. See [LICENCE.md](LICENCE.md) for details.
+This project is licensed under the Apache License 2.0. See [LICENSE.md](LICENSE.md) for details.
