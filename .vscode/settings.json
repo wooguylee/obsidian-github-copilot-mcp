@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^npx prettier --version 2>\\$null; Get-Command prettier -ErrorAction SilentlyContinue$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
