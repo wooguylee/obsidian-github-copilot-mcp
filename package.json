@@ -1,7 +1,7 @@
 {
   "name": "obsidian-github-copilot-mcp",
   "version": "1.0.0",
-  "description": "Obsidian plugin: GitHub Copilot models + MCP vault tools",
+  "description": "plugin: GitHub Copilot models + MCP vault tools",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

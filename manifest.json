@@ -3,7 +3,7 @@
   "name": "GitHub Copilot MCP",
   "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "Use GitHub Copilot models with MCP tools to read, write, and edit files in your Obsidian vault.",
+  "description": "Use GitHub Copilot models with MCP tools to read, write, and edit files in your vault.",
   "author": "WooguyLee",
   "isDesktopOnly": true
 }
