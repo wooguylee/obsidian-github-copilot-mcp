@@ -11,7 +11,6 @@ import { getVaultToolDefinitions, executeVaultTool } from "../mcp/tools";
 import type {
   AuthState,
   ChatMessage,
-  ToolCall,
   ModelOption,
   ToolCallResult,
   ConversationMessage,
@@ -224,7 +223,7 @@ IMPORTANT RULES:
         let parsedArgs: Record<string, unknown> = {};
         try {
           parsedArgs = JSON.parse(toolCall.function.arguments || "{}");
-        } catch (parseErr) {
+        } catch {
           onDebug(
             `[Engine] Failed to parse tool args: ${toolCall.function.arguments}`
           );

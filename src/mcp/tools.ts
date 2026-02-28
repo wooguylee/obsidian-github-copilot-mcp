@@ -288,10 +288,10 @@ export async function executeVaultTool(
 
 // --- Tool Implementations ---
 
-async function listFiles(
+function listFiles(
   app: App,
   args: Record<string, unknown>
-): Promise<string> {
+): string {
   const folderPath = (args.path as string) || "/";
   const recursive = (args.recursive as boolean) || false;
 
@@ -463,7 +463,7 @@ async function deleteFile(
     return `Error: File not found: ${path}`;
   }
 
-  await app.vault.trash(file, false);
+  await app.fileManager.trashFile(file);
   return `File deleted (moved to trash): ${path}`;
 }
 

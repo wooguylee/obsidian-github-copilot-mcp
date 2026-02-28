@@ -18,37 +18,34 @@ export default class CopilotMCPPlugin extends Plugin {
     this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 
     // Add ribbon icon to open chat
-    this.addRibbonIcon("message-square", "Open Copilot MCP Chat", () => {
-      this.activateView();
+    this.addRibbonIcon("message-square", "Open Copilot MCP chat", () => {
+      void this.activateView();
     });
 
     // Register command to open chat
     this.addCommand({
       id: "open-copilot-mcp-chat",
-      name: "Open Copilot MCP Chat",
+      name: "Open Copilot MCP chat",
       callback: () => {
-        this.activateView();
+        void this.activateView();
       },
     });
 
     // Register command to start new chat
     this.addCommand({
       id: "new-copilot-mcp-chat",
-      name: "New Copilot MCP Chat",
+      name: "New Copilot MCP chat",
       callback: () => {
-        this.activateView(true);
+        void this.activateView(true);
       },
     });
 
     // Register settings tab
     this.addSettingTab(new CopilotMCPSettingTab(this.app, this));
-
-    // Load styles
-    this.loadStyles();
   }
 
-  async onunload() {
-    this.app.workspace.detachLeavesOfType(CHAT_VIEW_TYPE);
+  onunload() {
+    // Plugin cleanup handled by Obsidian
   }
 
   async loadSettings() {
@@ -88,42 +85,4 @@ export default class CopilotMCPPlugin extends Plugin {
       }
     }
   }
-
-  private loadStyles() {
-    const styleEl = document.createElement("style");
-    styleEl.id = "copilot-mcp-styles";
-    styleEl.textContent = CSS_STYLES;
-    document.head.appendChild(styleEl);
-
-    this.register(() => {
-      styleEl.remove();
-    });
-  }
 }
-
-// ============================================================
-// Embedded CSS Styles
-// ============================================================
-
-const CSS_STYLES = `
-/* Tools list in settings */
-.copilot-mcp-tools-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 0;
-}
-
-.copilot-mcp-tool-info {
-  font-size: 13px;
-  padding: 4px 0;
-}
-
-.copilot-mcp-tool-info code {
-  background: var(--background-modifier-border);
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
-}
-
-`;

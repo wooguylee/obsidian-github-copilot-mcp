@@ -18,14 +18,17 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "GitHub Copilot MCP Settings" });
+    new Setting(containerEl)
+      .setName("GitHub Copilot MCP settings")
+      .setHeading();
 
     // --- Authentication Status ---
-    const authSection = containerEl.createDiv();
-    authSection.createEl("h3", { text: "Authentication" });
+    new Setting(containerEl)
+      .setName("Authentication")
+      .setHeading();
 
     const isAuthed = !!this.plugin.settings.authState.pat;
-    new Setting(authSection)
+    new Setting(containerEl)
       .setName("Status")
       .setDesc(
         isAuthed
@@ -34,23 +37,24 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
       )
       .addButton((btn) => {
         btn
-          .setButtonText(isAuthed ? "Sign out" : "Sign in from Chat panel")
-          .onClick(async () => {
+          .setButtonText(isAuthed ? "Sign out" : "Sign in from chat panel")
+          .onClick(() => {
             if (isAuthed) {
               this.plugin.settings.authState = {
                 deviceCode: null,
                 pat: null,
                 accessToken: { token: null, expiresAt: null },
               };
-              await this.plugin.saveSettings();
-              this.display();
+              void this.plugin.saveSettings().then(() => this.display());
             }
           });
         if (!isAuthed) btn.setCta();
       });
 
     // --- Model Selection ---
-    containerEl.createEl("h3", { text: "Model" });
+    new Setting(containerEl)
+      .setName("Model")
+      .setHeading();
 
     new Setting(containerEl)
       .setName("Default model")
@@ -60,17 +64,19 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
           dropdown.addOption(model.value, model.label);
         }
         dropdown.setValue(this.plugin.settings.selectedModel.value);
-        dropdown.onChange(async (value) => {
+        dropdown.onChange((value) => {
           const model = AVAILABLE_MODELS.find((m) => m.value === value);
           if (model) {
             this.plugin.settings.selectedModel = model;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           }
         });
       });
 
     // --- System Prompt ---
-    containerEl.createEl("h3", { text: "System Prompt" });
+    new Setting(containerEl)
+      .setName("System prompt")
+      .setHeading();
 
     new Setting(containerEl)
       .setName("Custom system prompt")
@@ -81,16 +87,18 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
         text
           .setPlaceholder("You are a helpful assistant...")
           .setValue(this.plugin.settings.systemPrompt)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.systemPrompt = value;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           });
         text.inputEl.rows = 5;
-        text.inputEl.style.width = "100%";
+        text.inputEl.addClass("copilot-mcp-textarea-full-width");
       });
 
     // --- Tool Settings ---
-    containerEl.createEl("h3", { text: "MCP Vault Tools" });
+    new Setting(containerEl)
+      .setName("MCP vault tools")
+      .setHeading();
 
     new Setting(containerEl)
       .setName("Enable vault tools")
@@ -100,9 +108,9 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.settings.enableTools)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.enableTools = value;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           });
       });
 
@@ -116,14 +124,16 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
           .setLimits(1, 20, 1)
           .setValue(this.plugin.settings.maxAutoIterations)
           .setDynamicTooltip()
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.maxAutoIterations = value;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           });
       });
 
     // --- Advanced ---
-    containerEl.createEl("h3", { text: "Advanced" });
+    new Setting(containerEl)
+      .setName("Advanced")
+      .setHeading();
 
     new Setting(containerEl)
       .setName("Debug mode")
@@ -131,14 +141,17 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.settings.debug)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.debug = value;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           });
       });
 
     // --- Available Tools Info ---
-    containerEl.createEl("h3", { text: "Available Vault Tools" });
+    new Setting(containerEl)
+      .setName("Available vault tools")
+      .setHeading();
+
     const toolsList = containerEl.createDiv({ cls: "copilot-mcp-tools-list" });
     const tools = [
       { name: "vault_list_files", desc: "List files and folders" },

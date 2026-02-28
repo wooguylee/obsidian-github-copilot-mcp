@@ -49,13 +49,13 @@ export class ChatView extends ItemView {
         return CHAT_VIEW_TYPE;
     }
     getDisplayText() {
-        return "Copilot MCP Chat";
+        return "Copilot MCP chat";
     }
     getIcon() {
         return "message-square";
     }
 
-    async onOpen() {
+    onOpen(): Promise<void> {
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass("copilot-mcp-container");
@@ -70,12 +70,14 @@ export class ChatView extends ItemView {
                 <ChatApp />
             </CopilotProvider>,
         );
+        return Promise.resolve();
     }
 
-    async onClose() {
+    onClose(): Promise<void> {
         this._abortController?.abort();
         this._root?.unmount();
         this._root = null;
+        return Promise.resolve();
     }
 }
 
@@ -140,20 +142,22 @@ function AuthView({ onSignIn }: { onSignIn: () => void }) {
     const [confirmText, setConfirmText] = useState("I've entered the code");
     const [confirmDisabled, setConfirmDisabled] = useState(false);
 
-    const handleSignIn = async () => {
-        try {
-            setBtnDisabled(true);
-            setBtnText("Getting device code...");
-            const dc = await fetchDeviceCode();
-            setDeviceInfo(dc);
-            setStep("code");
-        } catch (err) {
-            new Notice(
-                `Error: ${err instanceof Error ? err.message : String(err)}`,
-            );
-            setBtnDisabled(false);
-            setBtnText("Sign in with GitHub");
-        }
+    const handleSignIn = () => {
+        void (async () => {
+            try {
+                setBtnDisabled(true);
+                setBtnText("Getting device code...");
+                const dc = await fetchDeviceCode();
+                setDeviceInfo(dc);
+                setStep("code");
+            } catch (err) {
+                new Notice(
+                    `Error: ${err instanceof Error ? err.message : String(err)}`,
+                );
+                setBtnDisabled(false);
+                setBtnText("Sign in with GitHub");
+            }
+        })();
     };
 
     const handleCopy = () => {
@@ -163,41 +167,43 @@ function AuthView({ onSignIn }: { onSignIn: () => void }) {
         new Notice("Code copied! Paste it on GitHub.");
     };
 
-    const handleConfirm = async () => {
+    const handleConfirm = () => {
         if (!deviceInfo) return;
-        try {
-            setConfirmDisabled(true);
-            setConfirmText("Authenticating...");
+        void (async () => {
+            try {
+                setConfirmDisabled(true);
+                setConfirmText("Authenticating...");
 
-            const pat = await fetchPAT(deviceInfo.device_code);
-            if (!pat.access_token) {
+                const pat = await fetchPAT(deviceInfo.device_code);
+                if (!pat.access_token) {
+                    new Notice(
+                        "Authentication not yet complete. Please enter the code on GitHub first.",
+                    );
+                    setConfirmDisabled(false);
+                    setConfirmText("I've entered the code");
+                    return;
+                }
+
+                const tokenResp = await fetchToken(pat.access_token);
+                plugin.settings.authState = {
+                    deviceCode: deviceInfo.device_code,
+                    pat: pat.access_token,
+                    accessToken: {
+                        token: tokenResp.token,
+                        expiresAt: tokenResp.expires_at,
+                    },
+                };
+                await plugin.saveSettings();
+                new Notice("Successfully signed in to GitHub Copilot!");
+                onSignIn();
+            } catch (err) {
                 new Notice(
-                    "Authentication not yet complete. Please enter the code on GitHub first.",
+                    `Auth error: ${err instanceof Error ? err.message : String(err)}`,
                 );
                 setConfirmDisabled(false);
                 setConfirmText("I've entered the code");
-                return;
             }
-
-            const tokenResp = await fetchToken(pat.access_token);
-            plugin.settings.authState = {
-                deviceCode: deviceInfo.device_code,
-                pat: pat.access_token,
-                accessToken: {
-                    token: tokenResp.token,
-                    expiresAt: tokenResp.expires_at,
-                },
-            };
-            await plugin.saveSettings();
-            new Notice("Successfully signed in to GitHub Copilot!");
-            onSignIn();
-        } catch (err) {
-            new Notice(
-                `Auth error: ${err instanceof Error ? err.message : String(err)}`,
-            );
-            setConfirmDisabled(false);
-            setConfirmText("I've entered the code");
-        }
+        })();
     };
 
     return (
@@ -274,9 +280,9 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
 
     // Fetch dynamic model list from Copilot API on mount
     useEffect(() => {
-        fetchAvailableModels(plugin.settings.authState, async (auth) => {
+        fetchAvailableModels(plugin.settings.authState, (auth) => {
             Object.assign(plugin.settings.authState, auth);
-            await plugin.saveSettings();
+            void plugin.saveSettings();
         })
             .then((models) => {
                 if (models.length > 0) setAvailableModels(models);
@@ -294,19 +300,19 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
         };
     });
 
-    const handleSignOut = async () => {
+    const handleSignOut = () => {
         plugin.settings.authState = {
             deviceCode: null,
             pat: null,
             accessToken: { token: null, expiresAt: null },
         };
-        await plugin.saveSettings();
+        void plugin.saveSettings();
         setConversationHistory([]);
         new Notice("Signed out from GitHub Copilot");
         onSignOut();
     };
 
-    const handleModelChange = async (
+    const handleModelChange = (
         e: React.ChangeEvent<HTMLSelectElement>,
     ) => {
         const selected = availableModels.find(
@@ -314,7 +320,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
         );
         if (selected) {
             plugin.settings.selectedModel = selected;
-            await plugin.saveSettings();
+            void plugin.saveSettings();
         }
     };
 
@@ -330,7 +336,6 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
             abortRef.current = new AbortController();
 
             const toolResultsMap = new Map<string, ToolCallResult>();
-            let expectNextStream = false;
 
             try {
                 const newMessages = await runChatEngine(
@@ -343,9 +348,9 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
                         systemPrompt: plugin.settings.systemPrompt,
                         maxIterations: plugin.settings.maxAutoIterations,
                         enableTools: plugin.settings.enableTools,
-                        onAuthUpdate: async (auth) => {
+                        onAuthUpdate: (auth) => {
                             Object.assign(plugin.settings.authState, auth);
-                            await plugin.saveSettings();
+                            void plugin.saveSettings();
                         },
                         onContentDelta: (delta) => {
                             streamingAccumRef.current += delta;
@@ -379,7 +384,6 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
                             // If last msg is a tool result, a new stream is coming
                             const lastMsg = msgs[msgs.length - 1];
                             if (lastMsg?.role === "tool") {
-                                expectNextStream = true;
                                 setIsStreaming(true);
                             }
                         },
@@ -424,7 +428,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
                         onError: (err) => new Notice(`Copilot error: ${err}`),
                         onDebug: (debugMsg) => {
                             if (plugin.settings.debug)
-                                console.log(`[CopilotMCP] ${debugMsg}`);
+                                console.debug(`[CopilotMCP] ${debugMsg}`);
                         },
                         abortSignal: abortRef.current.signal,
                     },
@@ -440,7 +444,6 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
                 }
 
                 setConversationHistory((prev) => {
-                    const ids = new Set(prev.map((_, i) => i));
                     return [
                         ...prev,
                         ...newMessages.filter((m) => !prev.includes(m)),

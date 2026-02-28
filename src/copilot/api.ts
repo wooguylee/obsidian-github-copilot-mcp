@@ -13,7 +13,6 @@ import type {
   ChatMessage,
   ToolDefinition,
   ModelOption,
-  ToolCall,
 } from "../types";
 import { COPILOT_CLIENT_ID } from "../types";
 
@@ -105,7 +104,8 @@ export async function fetchAvailableModels(
     onUpdate: (auth: Partial<AuthState>) => void
 ): Promise<ModelOption[]> {
     const token = await ensureValidToken(authState, onUpdate);
-    const response = await fetch("https://api.githubcopilot.com/models", {
+    const response = await requestUrl({
+        url: "https://api.githubcopilot.com/models",
         method: "GET",
         headers: {
             Accept: "application/json",
@@ -114,30 +114,27 @@ export async function fetchAvailableModels(
             "Content-Type": "application/json",
         },
     });
-    if (!response.ok) {
-        throw new Error(`Failed to fetch models: ${response.status}`);
-    }
-    const data = await response.json();
+    const data = response.json;
     // Filter to chat-capable models and map to ModelOption
     return (data.data as Array<{ id: string; name?: string; capabilities?: { type?: string[] } }>)
-        .filter((m) => !m.capabilities?.type || m.capabilities.type.includes("chat"))
-        .map((m) => ({ label: m.name ?? m.id, value: m.id }))
-        .sort((a, b) => a.label.localeCompare(b.label));
+        .filter((m: { capabilities?: { type?: string[] } }) => !m.capabilities?.type || m.capabilities.type.includes("chat"))
+        .map((m: { id: string; name?: string }) => ({ label: m.name ?? m.id, value: m.id }))
+        .sort((a: ModelOption, b: ModelOption) => a.label.localeCompare(b.label));
 }
 
 // --- Streaming Chat Completion ---
 
 export interface StreamCallbacks {
   onContent: (delta: string) => void;
-  onToolCall: (toolCall: ToolCall) => void;
+  onToolCall: (toolCall: { id: string; type: "function"; function: { name: string; arguments: string } }) => void;
   onDone: (finishReason: string) => void;
   onError: (error: string) => void;
 }
 
 /**
- * Send a streaming chat completion request.
- * Uses native fetch + ReadableStream to process SSE chunks in real-time.
- * This prevents timeout issues with large multi-tool responses.
+ * Send a chat completion request using requestUrl.
+ * Uses non-streaming mode for Obsidian compatibility, then calls
+ * callbacks with the complete response.
  */
 export async function sendChatCompletionStream(
   token: string,
@@ -146,141 +143,58 @@ export async function sendChatCompletionStream(
   callbacks: StreamCallbacks,
   tools?: ToolDefinition[],
   abortSignal?: AbortSignal
-): Promise<{ content: string; toolCalls: ToolCall[]; finishReason: string }> {
+): Promise<{ content: string; toolCalls: { id: string; type: "function"; function: { name: string; arguments: string } }[]; finishReason: string }> {
+  if (abortSignal?.aborted) {
+    throw new Error("Request aborted");
+  }
+
   const request: ChatCompletionRequest = {
     intent: false,
     model: model.value,
     temperature: 0,
     top_p: 1,
     n: 1,
-    stream: true,
+    stream: false,
     messages,
     ...(tools && tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
   };
 
-  const response = await fetch(
-    "https://api.githubcopilot.com/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Accept: "text/event-stream",
-        "editor-version": "vscode/1.80.1",
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-      signal: abortSignal,
-    }
-  );
+  const response = await requestUrl({
+    url: "https://api.githubcopilot.com/chat/completions",
+    method: "POST",
+    headers: {
+      Accept: "*/*",
+      "editor-version": "vscode/1.80.1",
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Copilot API error (${response.status}): ${errorText}`
-    );
+  const data = response.json as ChatCompletionResponse;
+  const choice = data.choices[0];
+  const content = choice.message.content || "";
+  const toolCalls = (choice.message.tool_calls || []).map((tc) => ({
+    id: tc.id,
+    type: "function" as const,
+    function: {
+      name: tc.function.name,
+      arguments: tc.function.arguments,
+    },
+  }));
+  const finishReason = choice.finish_reason;
+
+  if (content) {
+    callbacks.onContent(content);
   }
 
-  if (!response.body) {
-    throw new Error("No response body received from Copilot API");
-  }
-
-  // Accumulate the full response
-  let fullContent = "";
-  const toolCallAccumulator = new Map<
-    number,
-    { id: string; name: string; arguments: string }
-  >();
-  let finishReason = "stop";
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete SSE lines
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || ""; // Keep incomplete line in buffer
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith("data: ")) continue;
-
-        const data = trimmed.slice(6); // Remove "data: " prefix
-        if (data === "[DONE]") continue;
-
-        try {
-          const chunk = JSON.parse(data);
-          const delta = chunk.choices?.[0]?.delta;
-          const chunkFinishReason = chunk.choices?.[0]?.finish_reason;
-
-          if (chunkFinishReason) {
-            finishReason = chunkFinishReason;
-          }
-
-          if (!delta) continue;
-
-          // Content delta
-          if (delta.content) {
-            fullContent += delta.content;
-            callbacks.onContent(delta.content);
-          }
-
-          // Tool call deltas
-          if (delta.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index ?? 0;
-
-              if (!toolCallAccumulator.has(idx)) {
-                toolCallAccumulator.set(idx, {
-                  id: tc.id || "",
-                  name: tc.function?.name || "",
-                  arguments: "",
-                });
-              }
-
-              const acc = toolCallAccumulator.get(idx)!;
-              if (tc.id) acc.id = tc.id;
-              if (tc.function?.name) acc.name = tc.function.name;
-              if (tc.function?.arguments) {
-                acc.arguments += tc.function.arguments;
-              }
-            }
-          }
-        } catch {
-          // Skip malformed JSON chunks
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  // Build final tool calls array
-  const toolCalls: ToolCall[] = [];
-  const sortedEntries = [...toolCallAccumulator.entries()].sort(
-    ([a], [b]) => a - b
-  );
-  for (const [, acc] of sortedEntries) {
-    const toolCall: ToolCall = {
-      id: acc.id,
-      type: "function",
-      function: {
-        name: acc.name,
-        arguments: acc.arguments,
-      },
-    };
-    toolCalls.push(toolCall);
-    callbacks.onToolCall(toolCall);
+  for (const tc of toolCalls) {
+    callbacks.onToolCall(tc);
   }
 
   callbacks.onDone(finishReason);
-  return { content: fullContent, toolCalls, finishReason };
+
+  return { content, toolCalls, finishReason };
 }
 
 // --- Non-streaming fallback (kept for simple requests) ---
