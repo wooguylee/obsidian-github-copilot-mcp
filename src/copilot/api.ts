@@ -132,9 +132,10 @@ export interface StreamCallbacks {
 }
 
 /**
- * Send a chat completion request using requestUrl.
- * Uses non-streaming mode for Obsidian compatibility, then calls
- * callbacks with the complete response.
+ * Send a chat completion request using requestUrl with stream: true.
+ * requestUrl buffers the entire SSE response, then we parse all events
+ * and call callbacks sequentially. This preserves correct finish_reason
+ * behavior for the agentic tool-call loop.
  */
 export async function sendChatCompletionStream(
   token: string,
@@ -154,7 +155,7 @@ export async function sendChatCompletionStream(
     temperature: 0,
     top_p: 1,
     n: 1,
-    stream: false,
+    stream: true,
     messages,
     ...(tools && tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
   };
@@ -163,7 +164,7 @@ export async function sendChatCompletionStream(
     url: "https://api.githubcopilot.com/chat/completions",
     method: "POST",
     headers: {
-      Accept: "*/*",
+      Accept: "text/event-stream",
       "editor-version": "vscode/1.80.1",
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -171,30 +172,97 @@ export async function sendChatCompletionStream(
     body: JSON.stringify(request),
   });
 
-  const data = response.json as ChatCompletionResponse;
-  const choice = data.choices[0];
-  const content = choice.message.content || "";
-  const toolCalls = (choice.message.tool_calls || []).map((tc) => ({
-    id: tc.id,
-    type: "function" as const,
-    function: {
-      name: tc.function.name,
-      arguments: tc.function.arguments,
-    },
-  }));
-  const finishReason = choice.finish_reason;
+  // Parse SSE events from the buffered response text
+  let fullContent = "";
+  const toolCallAccumulator = new Map<
+    number,
+    { id: string; name: string; arguments: string }
+  >();
+  let finishReason = "stop";
 
-  if (content) {
-    callbacks.onContent(content);
+  const lines = response.text.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+    const data = trimmed.slice(6);
+    if (data === "[DONE]") continue;
+
+    try {
+      const chunk = JSON.parse(data) as {
+        choices?: Array<{
+          delta?: {
+            content?: string;
+            tool_calls?: Array<{
+              index?: number;
+              id?: string;
+              function?: { name?: string; arguments?: string };
+            }>;
+          };
+          finish_reason?: string;
+        }>;
+      };
+      const delta = chunk.choices?.[0]?.delta;
+      const chunkFinishReason = chunk.choices?.[0]?.finish_reason;
+
+      if (chunkFinishReason) {
+        finishReason = chunkFinishReason;
+      }
+
+      if (!delta) continue;
+
+      // Content delta
+      if (delta.content) {
+        fullContent += delta.content;
+        callbacks.onContent(delta.content);
+      }
+
+      // Tool call deltas
+      if (delta.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          const idx = tc.index ?? 0;
+
+          if (!toolCallAccumulator.has(idx)) {
+            toolCallAccumulator.set(idx, {
+              id: tc.id ?? "",
+              name: tc.function?.name ?? "",
+              arguments: "",
+            });
+          }
+
+          const acc = toolCallAccumulator.get(idx)!;
+          if (tc.id) acc.id = tc.id;
+          if (tc.function?.name) acc.name = tc.function.name;
+          if (tc.function?.arguments) {
+            acc.arguments += tc.function.arguments;
+          }
+        }
+      }
+    } catch {
+      // Skip malformed JSON chunks
+    }
   }
 
-  for (const tc of toolCalls) {
-    callbacks.onToolCall(tc);
+  // Build final tool calls array
+  const toolCalls: { id: string; type: "function"; function: { name: string; arguments: string } }[] = [];
+  const sortedEntries = [...toolCallAccumulator.entries()].sort(
+    ([a], [b]) => a - b
+  );
+  for (const [, acc] of sortedEntries) {
+    const toolCall = {
+      id: acc.id,
+      type: "function" as const,
+      function: {
+        name: acc.name,
+        arguments: acc.arguments,
+      },
+    };
+    toolCalls.push(toolCall);
+    callbacks.onToolCall(toolCall);
   }
 
   callbacks.onDone(finishReason);
-
-  return { content, toolCalls, finishReason };
+  return { content: fullContent, toolCalls, finishReason };
 }
 
 // --- Non-streaming fallback (kept for simple requests) ---

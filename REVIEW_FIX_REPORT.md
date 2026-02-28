@@ -14,9 +14,9 @@ ObsidianReviewBot이 플러그인 코드를 자동 스캔한 결과 **Required**
 | 파일 | 수정 전 | 수정 후 |
 |------|---------|---------|
 | `src/copilot/api.ts` - `fetchAvailableModels` | `fetch()` 사용 | `requestUrl()` 사용 |
-| `src/copilot/api.ts` - `sendChatCompletionStream` | `fetch()` + SSE 스트리밍 | `requestUrl()` + `stream: false` 모드 |
+| `src/copilot/api.ts` - `sendChatCompletionStream` | `fetch()` + SSE 스트리밍 | `requestUrl()` + `stream: true` + SSE 파싱 |
 
-> ⚠️ **참고**: `requestUrl`은 스트리밍을 지원하지 않으므로 실시간 토큰 단위 표시 대신 응답 완성 후 한 번에 표시됩니다.
+> ⚠️ **참고**: `requestUrl`은 응답이 완전히 수신된 후 반환하므로 토큰 단위 실시간 표시는 불가하지만, `stream: true` + SSE 파싱 방식으로 tool call 루프가 정상 동작합니다.
 
 ### 2. ✅ UI 텍스트 Sentence case 적용 (12건)
 
