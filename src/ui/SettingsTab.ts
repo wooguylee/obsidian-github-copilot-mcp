@@ -18,10 +18,6 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl)
-      .setName("GitHub Copilot MCP settings")
-      .setHeading();
-
     // --- Authentication Status ---
     new Setting(containerEl)
       .setName("Authentication")
@@ -58,7 +54,7 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Default model")
-      .setDesc("Select the GitHub Copilot model to use for chat.")
+      .setDesc("Select the model to use for chat.")
       .addDropdown((dropdown) => {
         for (const model of AVAILABLE_MODELS) {
           dropdown.addOption(model.value, model.label);
@@ -97,13 +93,13 @@ export class CopilotMCPSettingTab extends PluginSettingTab {
 
     // --- Tool Settings ---
     new Setting(containerEl)
-      .setName("MCP vault tools")
+      .setName("Vault tools")
       .setHeading();
 
     new Setting(containerEl)
       .setName("Enable vault tools")
       .setDesc(
-        "Allow Copilot to use tools for reading, writing, editing, and searching files in your vault."
+        "Allow the plugin to use tools for reading, writing, editing, and searching files in your vault."
       )
       .addToggle((toggle) => {
         toggle

@@ -18,14 +18,14 @@ export default class CopilotMCPPlugin extends Plugin {
     this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 
     // Add ribbon icon to open chat
-    this.addRibbonIcon("message-square", "Open Copilot MCP chat", () => {
+    this.addRibbonIcon("message-square", "Open chat", () => {
       void this.activateView();
     });
 
     // Register command to open chat
     this.addCommand({
       id: "open-copilot-mcp-chat",
-      name: "Open Copilot MCP chat",
+      name: "Open chat",
       callback: () => {
         void this.activateView();
       },
@@ -34,7 +34,7 @@ export default class CopilotMCPPlugin extends Plugin {
     // Register command to start new chat
     this.addCommand({
       id: "new-copilot-mcp-chat",
-      name: "New Copilot MCP chat",
+      name: "New chat",
       callback: () => {
         void this.activateView(true);
       },
@@ -52,7 +52,7 @@ export default class CopilotMCPPlugin extends Plugin {
     this.settings = Object.assign(
       {},
       DEFAULT_SETTINGS,
-      await this.loadData()
+      (await this.loadData()) as Partial<PluginSettings> | undefined
     );
   }
 
@@ -77,7 +77,7 @@ export default class CopilotMCPPlugin extends Plugin {
     }
 
     if (leaf) {
-      workspace.revealLeaf(leaf);
+      await workspace.revealLeaf(leaf);
 
       if (newChat) {
         const view = leaf.view as ChatView;

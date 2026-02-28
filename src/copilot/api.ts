@@ -37,7 +37,7 @@ export async function fetchDeviceCode(): Promise<DeviceCodeResponse> {
       scope: "read:user",
     }),
   });
-  return response.json;
+  return response.json as DeviceCodeResponse;
 }
 
 export async function fetchPAT(deviceCode: string): Promise<PATResponse> {
@@ -51,7 +51,7 @@ export async function fetchPAT(deviceCode: string): Promise<PATResponse> {
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
     }),
   });
-  return response.json;
+  return response.json as PATResponse;
 }
 
 export async function fetchToken(pat: string): Promise<TokenResponse> {
@@ -63,7 +63,7 @@ export async function fetchToken(pat: string): Promise<TokenResponse> {
       authorization: `token ${pat}`,
     },
   });
-  return response.json;
+  return response.json as TokenResponse;
 }
 
 // --- Token Management ---
@@ -114,12 +114,12 @@ export async function fetchAvailableModels(
             "Content-Type": "application/json",
         },
     });
-    const data = response.json;
+    const data = response.json as { data: Array<{ id: string; name?: string; capabilities?: { type?: string[] } }> };
     // Filter to chat-capable models and map to ModelOption
-    return (data.data as Array<{ id: string; name?: string; capabilities?: { type?: string[] } }>)
-        .filter((m: { capabilities?: { type?: string[] } }) => !m.capabilities?.type || m.capabilities.type.includes("chat"))
-        .map((m: { id: string; name?: string }) => ({ label: m.name ?? m.id, value: m.id }))
-        .sort((a: ModelOption, b: ModelOption) => a.label.localeCompare(b.label));
+    return data.data
+        .filter((m) => !m.capabilities?.type || m.capabilities.type.includes("chat"))
+        .map((m) => ({ label: m.name ?? m.id, value: m.id }))
+        .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 // --- Streaming Chat Completion ---
@@ -228,5 +228,5 @@ export async function sendChatCompletion(
     body: JSON.stringify(request),
   });
 
-  return response.json;
+  return response.json as ChatCompletionResponse;
 }

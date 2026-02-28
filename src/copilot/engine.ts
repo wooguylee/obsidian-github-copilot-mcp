@@ -222,7 +222,7 @@ IMPORTANT RULES:
 
         let parsedArgs: Record<string, unknown> = {};
         try {
-          parsedArgs = JSON.parse(toolCall.function.arguments || "{}");
+          parsedArgs = JSON.parse(toolCall.function.arguments || "{}") as Record<string, unknown>;
         } catch {
           onDebug(
             `[Engine] Failed to parse tool args: ${toolCall.function.arguments}`

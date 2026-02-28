@@ -260,7 +260,7 @@ export async function executeVaultTool(
 ): Promise<string> {
   switch (toolName) {
     case "vault_list_files":
-      return await listFiles(app, args);
+      return listFiles(app, args);
     case "vault_read_file":
       return await readFile(app, args);
     case "vault_write_file":
@@ -446,7 +446,7 @@ async function searchFiles(
   }
 
   if (results.length === 0) {
-    return `No files found containing "${args.query}".`;
+    return `No files found containing "${String(args.query)}".`;
   }
   return results.join("\n");
 }

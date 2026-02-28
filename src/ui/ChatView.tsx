@@ -49,7 +49,7 @@ export class ChatView extends ItemView {
         return CHAT_VIEW_TYPE;
     }
     getDisplayText() {
-        return "Copilot MCP chat";
+        return "Chat";
     }
     getIcon() {
         return "message-square";
@@ -162,7 +162,7 @@ function AuthView({ onSignIn }: { onSignIn: () => void }) {
 
     const handleCopy = () => {
         if (!deviceInfo) return;
-        navigator.clipboard.writeText(deviceInfo.user_code);
+        void navigator.clipboard.writeText(deviceInfo.user_code);
         window.open(deviceInfo.verification_uri, "_blank");
         new Notice("Code copied! Paste it on GitHub.");
     };
@@ -194,7 +194,7 @@ function AuthView({ onSignIn }: { onSignIn: () => void }) {
                     },
                 };
                 await plugin.saveSettings();
-                new Notice("Successfully signed in to GitHub Copilot!");
+                new Notice("Successfully signed in!");
                 onSignIn();
             } catch (err) {
                 new Notice(
@@ -308,7 +308,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
         };
         void plugin.saveSettings();
         setConversationHistory([]);
-        new Notice("Signed out from GitHub Copilot");
+        new Notice("Signed out");
         onSignOut();
     };
 
@@ -477,7 +477,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            handleSend();
+            void handleSend();
         }
     };
 
@@ -513,7 +513,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
                 {conversationHistory.length === 0 &&
                 !isStreaming &&
                 liveToolCalls.length === 0 ? (
-                    <EmptyState onSelectExample={(q) => handleSend(q)} />
+                    <EmptyState onSelectExample={(q) => void handleSend(q)} />
                 ) : (
                     <>
                         {conversationHistory.map((msg, i) => (
@@ -553,7 +553,7 @@ function ChatMainView({ onSignOut }: { onSignOut: () => void }) {
                     ) : (
                         <SendButton
                             className="mod-cta"
-                            onClick={() => handleSend()}
+                            onClick={() => void handleSend()}
                         >
                             Send
                         </SendButton>
@@ -690,7 +690,7 @@ function MarkdownContent({
     useEffect(() => {
         if (!ref.current) return;
         ref.current.innerHTML = "";
-        MarkdownRenderer.render(app, content, ref.current, "", component);
+        void MarkdownRenderer.render(app, content, ref.current, "", component);
     }, [content, app, component]);
 
     return <MessageContent ref={ref} />;
